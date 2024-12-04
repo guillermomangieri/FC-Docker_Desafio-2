@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+
+  db:
+    build: ./mysql
+    container_name: db
+    restart: always
+    tty: true
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+    networks:
+      - des-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    
+
+  app:
+    build:
+      context: node
+    container_name: app
+    ports:
+      - "3000:3000"
+    networks:
+      - des-network
+    volumes:
+      - ./node:/usr/src/app
+    tty: true
+    depends_on:
+      db:
+          condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  nginx:
+    build: ./nginx
+    container_name: nginx
+    expose:
+      - 8080
+    ports:
+      - 80:80
+      - 8080:8080
+    restart: always
+    networks:
+      - des-network
+    depends_on:
+      - app
+
+networks:
+  des-network:
+    driver: bridge
